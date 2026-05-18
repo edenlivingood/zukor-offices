@@ -1,0 +1,513 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Zukor Building — Office Availability</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: #f5f4f1; color: #1a1a1a; font-size: 14px; }
+  .app { max-width: 940px; margin: 0 auto; padding: 2rem 1.5rem 4rem; }
+
+  .header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 12px; }
+  .header h1 { font-size: 26px; font-weight: 600; letter-spacing: -0.4px; color: #0d0d0d; }
+  .header p { font-size: 13px; color: #888; margin-top: 3px; }
+  .week-nav { display: flex; align-items: center; gap: 10px; }
+  .week-nav button { background: #fff; border: 1px solid #e0e0e0; border-radius: 8px; padding: 6px 12px; cursor: pointer; font-size: 14px; color: #333; }
+  .week-nav button:hover { background: #f0f0f0; }
+  .week-label { font-size: 13px; font-weight: 600; min-width: 130px; text-align: center; color: #333; }
+
+  .legend { display: flex; gap: 16px; margin-bottom: 1.25rem; flex-wrap: wrap; }
+  .legend-item { display: flex; align-items: center; gap: 6px; font-size: 12px; color: #666; }
+  .ldot { width: 9px; height: 9px; border-radius: 50%; }
+  .d-avail { background: #639922; } .d-in { background: #E24B4A; } .d-remote { background: #378ADD; } .d-travel { background: #BA7517; } .d-res { background: #0F6E56; }
+
+  .user-bar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.25rem; flex-wrap: wrap; gap: 8px; }
+  .user-badge { display: inline-flex; align-items: center; gap: 6px; background: #f0f0ee; border-radius: 20px; padding: 4px 12px; font-size: 12px; color: #555; }
+  .user-badge .dot { width: 8px; height: 8px; border-radius: 50%; background: #639922; display: inline-block; }
+  .user-badge.guest .dot { background: #888; }
+  .switch-link { font-size: 12px; color: #185FA5; cursor: pointer; text-decoration: underline; background: none; border: none; font-family: inherit; padding: 0; }
+
+  .grid-wrap { background: #fff; border: 1px solid #e0e0e0; border-radius: 14px; overflow: hidden; margin-bottom: 1rem; }
+  .grid { display: grid; grid-template-columns: 178px repeat(5, 1fr); }
+  .ch { padding: 10px 8px; font-size: 12px; font-weight: 600; color: #888; background: #fafaf9; text-align: center; border-bottom: 1px solid #ebebeb; border-right: 1px solid #ebebeb; }
+  .ch:last-child { border-right: none; }
+  .ch.today { background: #e8f0fb; color: #185FA5; }
+  .ch .dn { font-size: 18px; font-weight: 700; display: block; color: #222; line-height: 1.2; }
+  .ch.today .dn { color: #185FA5; }
+  .rh { padding: 12px 14px; background: #fff; border-bottom: 1px solid #ebebeb; border-right: 1px solid #ebebeb; display: flex; flex-direction: column; justify-content: center; }
+  .rh .en { font-size: 13px; font-weight: 600; color: #111; }
+  .rh .er { font-size: 11px; color: #888; margin-top: 2px; line-height: 1.3; }
+  .rh .eo { font-size: 11px; color: #bbb; margin-top: 2px; }
+  .cell { border-bottom: 1px solid #ebebeb; border-right: 1px solid #ebebeb; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 6px 5px; gap: 4px; min-height: 72px; transition: background 0.1s; }
+  .cell.clickable { cursor: pointer; }
+  .cell.clickable:hover { background: #f7f7f5; }
+  .cell:last-child { border-right: none; }
+  .last-row .cell, .last-row .rh { border-bottom: none; }
+
+  .badge { font-size: 11px; font-weight: 600; padding: 3px 8px; border-radius: 20px; text-align: center; width: calc(100% - 6px); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .b-avail { background: #EAF3DE; color: #3B6D11; }
+  .b-in { background: #FCEBEB; color: #A32D2D; }
+  .b-remote { background: #E6F1FB; color: #185FA5; }
+  .b-travel { background: #FAEEDA; color: #854F0B; }
+  .b-empty { background: #f0f0ee; color: #bbb; }
+
+  .res-block { background: #E1F5EE; border-radius: 8px; padding: 4px 6px; width: calc(100% - 6px); text-align: center; }
+  .res-exec { font-size: 11px; font-weight: 600; color: #085041; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .res-asst { font-size: 10px; color: #0F6E56; margin-top: 1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+  .req-btn { font-size: 10px; padding: 3px 8px; border-radius: 20px; border: 1px solid #c8dff8; background: #fff; color: #185FA5; cursor: pointer; width: calc(100% - 6px); font-family: inherit; font-weight: 500; }
+  .req-btn:hover { background: #e8f0fb; }
+  .cal-btn { font-size: 10px; padding: 3px 8px; border-radius: 20px; border: 1px solid #c0d9a0; background: #fff; color: #3B6D11; cursor: pointer; width: calc(100% - 6px); font-family: inherit; font-weight: 500; text-decoration: none; display: block; text-align: center; }
+  .cal-btn:hover { background: #EAF3DE; }
+
+  .summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 10px; }
+  .sc { background: #fff; border: 1px solid #e8e8e8; border-radius: 10px; padding: 12px 16px; }
+  .sc .sl { font-size: 11px; color: #999; margin-bottom: 4px; }
+  .sc .sv { font-size: 24px; font-weight: 700; color: #111; }
+  .sc .ss { font-size: 11px; color: #aaa; margin-top: 2px; }
+
+  .toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); background: #222; color: #fff; font-size: 13px; padding: 10px 20px; border-radius: 8px; opacity: 0; transition: opacity 0.3s; pointer-events: none; z-index: 999; }
+  .toast.show { opacity: 1; }
+
+  .overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.35); z-index: 100; align-items: center; justify-content: center; }
+  .overlay.show { display: flex; }
+
+  .modal { background: #fff; border-radius: 14px; border: 1px solid #e0e0e0; padding: 1.5rem; width: 300px; }
+  .modal h3 { font-size: 15px; font-weight: 600; color: #111; margin-bottom: 3px; }
+  .modal .msub { font-size: 12px; color: #888; margin-bottom: 14px; }
+  .mopts { display: flex; flex-direction: column; gap: 7px; margin-bottom: 14px; }
+  .mopt { display: flex; align-items: center; gap: 9px; padding: 8px 12px; border-radius: 8px; border: 1px solid #e8e8e8; cursor: pointer; font-size: 13px; color: #111; background: #fff; width: 100%; text-align: left; font-family: inherit; }
+  .mopt:hover { background: #f7f7f5; }
+  .mopt.sel { border-color: #aaa; background: #f5f5f3; }
+  .mfoot { display: flex; gap: 8px; }
+  .btn-c { flex: 1; padding: 8px; border: 1px solid #e0e0e0; border-radius: 8px; background: #fff; color: #666; cursor: pointer; font-size: 13px; font-family: inherit; }
+  .btn-s { flex: 1; padding: 8px; border: 1px solid #222; border-radius: 8px; background: #222; color: #fff; cursor: pointer; font-size: 13px; font-family: inherit; font-weight: 600; }
+  .btn-c:hover { background: #f5f5f3; }
+  .btn-s:hover { background: #333; }
+  .btn-full { width: 100%; padding: 10px; border: 1px solid #222; border-radius: 8px; background: #222; color: #fff; cursor: pointer; font-size: 13px; font-family: inherit; font-weight: 600; }
+  .btn-full:hover { background: #333; }
+
+  .req-modal { background: #fff; border-radius: 14px; border: 1px solid #e0e0e0; padding: 1.5rem; width: 360px; max-height: 90vh; overflow-y: auto; }
+  .req-modal h3 { font-size: 15px; font-weight: 600; color: #111; margin-bottom: 3px; }
+  .req-modal .rsub { font-size: 12px; color: #888; margin-bottom: 16px; }
+  .field { margin-bottom: 12px; }
+  .field label { display: block; font-size: 11px; color: #888; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 5px; }
+  .field input { width: 100%; padding: 8px 12px; font-size: 13px; border: 1px solid #e0e0e0; border-radius: 8px; background: #fff; color: #111; font-family: inherit; }
+  .field input:focus { outline: none; border-color: #888; }
+
+  .action-panel { background: #f7f7f5; border-radius: 10px; padding: 12px 14px; margin-bottom: 14px; display: none; }
+  .action-panel.show { display: block; }
+  .action-panel .ap-label { font-size: 11px; font-weight: 600; color: #888; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 9px; }
+  .action-links { display: flex; flex-direction: column; gap: 7px; }
+  .action-link { display: block; font-size: 13px; font-weight: 500; padding: 10px 14px; border-radius: 8px; border: 1px solid #d0d9f0; background: #fff; color: #185FA5; text-decoration: none; text-align: center; font-family: inherit; }
+  .action-link:hover { background: #e8f0fb; }
+  .cal-link { color: #3B6D11; border-color: #c0d9a0; }
+  .cal-link:hover { background: #EAF3DE; }
+
+  .loading { text-align: center; padding: 3rem; color: #aaa; font-size: 13px; }
+
+  .login-modal { background: #fff; border-radius: 14px; border: 1px solid #e0e0e0; padding: 1.5rem; width: 300px; }
+  .login-modal h3 { font-size: 15px; font-weight: 600; color: #111; margin-bottom: 4px; }
+  .login-modal p { font-size: 12px; color: #888; margin-bottom: 14px; line-height: 1.5; }
+  .login-opts { display: flex; flex-direction: column; gap: 7px; margin-bottom: 12px; }
+  .login-opt { padding: 9px 14px; border-radius: 8px; border: 1px solid #e8e8e8; cursor: pointer; font-size: 13px; color: #111; background: #fff; width: 100%; text-align: left; font-family: inherit; }
+  .login-opt:hover { background: #f7f7f5; border-color: #ccc; }
+  .login-guest { width: 100%; padding: 8px; border: 1px solid #e0e0e0; border-radius: 8px; background: #f7f7f5; color: #888; cursor: pointer; font-size: 12px; font-family: inherit; }
+  .login-guest:hover { background: #efefed; }
+</style>
+</head>
+<body>
+
+<!-- ════════════════════════════════════════════════════════════
+     PASTE YOUR APPS SCRIPT DEPLOYMENT URL BELOW
+     It looks like: https://script.google.com/macros/s/XXXXX/exec
+     Make sure to keep the quotation marks around it!
+════════════════════════════════════════════════════════════ -->
+<script>
+  const APPS_SCRIPT_URL = "https://script.google.com/a/macros/paramount.com/s/AKfycby2q3amkuLEhynBRm0Vxjaz0tTfcYCPaCvqODagS1sSx8gFrh7hMatuIYADml3pbibJkA/exec";
+</script>
+
+<div class="app">
+  <div class="header">
+    <div>
+      <h1>Zukor Building</h1>
+      <p>Paramount Lot · office availability</p>
+    </div>
+    <div class="week-nav">
+      <button onclick="changeWeek(-1)">&#8592;</button>
+      <span class="week-label" id="wlabel"></span>
+      <button onclick="changeWeek(1)">&#8594;</button>
+    </div>
+  </div>
+
+  <div class="user-bar">
+    <div class="user-badge" id="user-badge">
+      <span class="dot"></span>
+      <span id="user-label">—</span>
+    </div>
+    <button class="switch-link" onclick="switchUser()">Switch user</button>
+  </div>
+
+  <div class="legend">
+    <div class="legend-item"><div class="ldot d-avail"></div>Available</div>
+    <div class="legend-item"><div class="ldot d-in"></div>In office</div>
+    <div class="legend-item"><div class="ldot d-remote"></div>Remote</div>
+    <div class="legend-item"><div class="ldot d-travel"></div>Travel / off-site</div>
+    <div class="legend-item"><div class="ldot d-res"></div>Reserved</div>
+  </div>
+
+  <div class="grid-wrap">
+    <div id="loading" class="loading">Loading availability...</div>
+    <div class="grid" id="grid" style="display:none"></div>
+  </div>
+
+  <div class="summary" id="summary"></div>
+</div>
+
+<!-- Login modal -->
+<div class="overlay show" id="login-overlay">
+  <div class="login-modal">
+    <h3>Welcome to Zukor Building</h3>
+    <p>Are you one of the Zukor assistants? Select your name to update office availability. Otherwise, continue as a guest to view availability and submit requests.</p>
+    <div class="login-opts">
+      <button class="login-opt" onclick="setUser('Eden Livingood')">Eden Livingood</button>
+      <button class="login-opt" onclick="setUser('Tammi Delgadillo')">Tammi Delgadillo</button>
+      <button class="login-opt" onclick="setUser('Karmen Haley')">Karmen Haley</button>
+      <button class="login-opt" onclick="setUser('Victoria Gonzalez')">Victoria Gonzalez</button>
+    </div>
+    <button class="login-guest" onclick="setUser('guest')">Continue as guest (view &amp; request only)</button>
+  </div>
+</div>
+
+<!-- Status modal (team only) -->
+<div class="overlay" id="status-overlay">
+  <div class="modal">
+    <h3 id="m-title"></h3>
+    <div class="msub" id="m-sub"></div>
+    <div class="mopts" id="m-opts"></div>
+    <div class="mfoot">
+      <button class="btn-c" onclick="closeStatusModal()">Cancel</button>
+      <button class="btn-s" onclick="saveStatus()">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- Request modal (everyone) -->
+<div class="overlay" id="req-overlay">
+  <div class="req-modal">
+    <h3 id="r-title"></h3>
+    <div class="rsub" id="r-sub"></div>
+    <div id="rform">
+      <div class="field">
+        <label>Your name</label>
+        <input type="text" id="r-name" placeholder="e.g. Jane Smith" />
+      </div>
+      <div class="field">
+        <label>Your email (for calendar invite)</label>
+        <input type="text" id="r-email" placeholder="e.g. jane.smith@paramount.com" />
+      </div>
+      <div class="field">
+        <label>Executive you support</label>
+        <input type="text" id="r-exec" placeholder="e.g. Bob Jones, EVP" />
+      </div>
+      <div class="mfoot">
+        <button class="btn-c" onclick="closeReqModal()">Cancel</button>
+        <button class="btn-s" onclick="generateLinks()">Generate links</button>
+      </div>
+    </div>
+    <div class="action-panel" id="action-panel">
+      <div class="ap-label">Open to send:</div>
+      <div class="action-links" id="action-links"></div>
+    </div>
+    <div id="done-footer" style="display:none">
+      <button class="btn-full" onclick="closeReqModal()">Done</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const EXECS = [
+  { name:"Efrain Miron",   role:"EVP, Content Strategy & Licensing",   office:"5206", assistant:"Tammi Delgadillo", aEmail:"tammi.delgadillo@paramount.com" },
+  { name:"Matt Kenney",    role:"VP, Programming",                     office:"5101", assistant:"Tammi Delgadillo", aEmail:"tammi.delgadillo@paramount.com" },
+  { name:"Rodrigo Mazon",  role:"EVP, Head of Latin America & Canada", office:"5210", assistant:"Victoria Gonzalez",aEmail:"victoria.gonzalez@paramount.com" },
+  { name:"Shannon Buck",   role:"EVP, Head of Communications & PR",    office:"5207", assistant:"Karmen Haley",     aEmail:"karmen.haley@paramount.com" }
+];
+const TEAM_ASSISTANTS = ["Eden Livingood","Tammi Delgadillo","Karmen Haley","Victoria Gonzalez"];
+const EDEN = { name:"Eden Livingood", email:"eden.livingood@paramount.com" };
+const MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+const DAYS   = ["Mon","Tue","Wed","Thu","Fri"];
+const STATUS = {
+  available: { label:"Available",         bc:"b-avail",  dot:"d-avail"  },
+  in_office: { label:"In office",         bc:"b-in",     dot:"d-in"     },
+  remote:    { label:"Remote",            bc:"b-remote", dot:"d-remote" },
+  travel:    { label:"Travel / off-site", bc:"b-travel", dot:"d-travel" }
+};
+
+let weekOffset = 0, data = {}, reservations = {}, modalCell = null, modalSel = null, reqCell = null;
+let currentUser = null;
+
+function isTeamMember() { return TEAM_ASSISTANTS.includes(currentUser); }
+
+function setUser(name) {
+  currentUser = name;
+  document.getElementById("login-overlay").classList.remove("show");
+  const badge = document.getElementById("user-badge");
+  if (name === "guest") {
+    document.getElementById("user-label").textContent = "Guest — view & request only";
+    badge.classList.add("guest");
+  } else {
+    document.getElementById("user-label").textContent = name;
+    badge.classList.remove("guest");
+  }
+  loadData();
+}
+
+function switchUser() {
+  currentUser = null;
+  document.getElementById("login-overlay").classList.add("show");
+}
+
+function getMonday(d) {
+  const dt = new Date(d); const day = dt.getDay();
+  dt.setDate(dt.getDate() + (day === 0 ? -6 : 1 - day));
+  dt.setHours(0,0,0,0); return dt;
+}
+function weekDates() {
+  const b = getMonday(new Date());
+  b.setDate(b.getDate() + weekOffset * 7);
+  return Array.from({length:5}, (_,i) => { const d = new Date(b); d.setDate(d.getDate()+i); return d; });
+}
+function dkey(d) { return d.toISOString().slice(0,10); }
+function ckey(ei, ds) { return ei + "_" + ds; }
+function isToday(d) { const t=new Date(); return d.getFullYear()===t.getFullYear()&&d.getMonth()===t.getMonth()&&d.getDate()===t.getDate(); }
+function changeWeek(dir) { weekOffset += dir; render(); }
+
+function showToast(msg) {
+  const t = document.getElementById("toast");
+  t.textContent = msg; t.classList.add("show");
+  setTimeout(() => t.classList.remove("show"), 2500);
+}
+
+async function loadData() {
+  if (!APPS_SCRIPT_URL || APPS_SCRIPT_URL.includes("YOUR_")) { render(); return; }
+  try {
+    const res = await fetch(APPS_SCRIPT_URL);
+    const json = await res.json();
+    if (json.ok) {
+      data = {};
+      Object.entries(json.data).forEach(([k, v]) => { data[k] = v.status; });
+    }
+  } catch(e) { console.warn("Could not load data:", e); }
+  render();
+}
+
+async function saveCell(key, status) {
+  if (!APPS_SCRIPT_URL || APPS_SCRIPT_URL.includes("YOUR_")) return;
+  try {
+    await fetch(APPS_SCRIPT_URL, {
+      method: "POST",
+      body: JSON.stringify({ key, status, updatedBy: currentUser }),
+      headers: { "Content-Type": "application/json" }
+    });
+  } catch(e) { console.warn("Save failed:", e); }
+}
+
+function openStatusModal(ei, ds, cur) {
+  if (!isTeamMember()) return;
+  modalCell = {ei, ds}; modalSel = cur || null;
+  const exec = EXECS[ei], d = new Date(ds+"T12:00:00");
+  document.getElementById("m-title").textContent = exec.name;
+  document.getElementById("m-sub").textContent = `Office ${exec.office} · ${DAYS[d.getDay()-1]}, ${MONTHS[d.getMonth()]} ${d.getDate()}`;
+  const opts = document.getElementById("m-opts"); opts.innerHTML = "";
+  Object.entries(STATUS).forEach(([k,v]) => {
+    const btn = document.createElement("button");
+    btn.className = "mopt" + (modalSel === k ? " sel" : "");
+    btn.innerHTML = `<div class="ldot ${v.dot}" style="width:9px;height:9px;border-radius:50%;flex-shrink:0"></div>${v.label}`;
+    btn.onclick = () => { modalSel = k; opts.querySelectorAll(".mopt").forEach(b=>b.classList.remove("sel")); btn.classList.add("sel"); };
+    opts.appendChild(btn);
+  });
+  const clr = document.createElement("button");
+  clr.className = "mopt" + (!modalSel ? " sel" : "");
+  clr.innerHTML = `<div style="width:9px;height:9px;border-radius:50%;border:1.5px solid #ccc;flex-shrink:0"></div>Clear / not set`;
+  clr.onclick = () => { modalSel = null; opts.querySelectorAll(".mopt").forEach(b=>b.classList.remove("sel")); clr.classList.add("sel"); };
+  opts.appendChild(clr);
+  document.getElementById("status-overlay").classList.add("show");
+}
+function closeStatusModal() { document.getElementById("status-overlay").classList.remove("show"); modalCell=null; modalSel=null; }
+async function saveStatus() {
+  if (!modalCell) return;
+  const k = ckey(modalCell.ei, modalCell.ds);
+  if (modalSel) data[k] = modalSel; else { delete data[k]; delete reservations[k]; }
+  closeStatusModal(); render();
+  await saveCell(k, modalSel || "");
+  showToast("Saved!");
+}
+
+function openReqModal(ei, ds) {
+  reqCell = {ei, ds};
+  const exec = EXECS[ei], d = new Date(ds+"T12:00:00");
+  document.getElementById("r-title").textContent = "Request — Office " + exec.office;
+  document.getElementById("r-sub").textContent = `${exec.name} · ${DAYS[d.getDay()-1]}, ${MONTHS[d.getMonth()]} ${d.getDate()}`;
+  ["r-name","r-email","r-exec"].forEach(id => document.getElementById(id).value = "");
+  document.getElementById("rform").style.display = "block";
+  document.getElementById("action-panel").classList.remove("show");
+  document.getElementById("action-links").innerHTML = "";
+  document.getElementById("done-footer").style.display = "none";
+  document.getElementById("req-overlay").classList.add("show");
+}
+function closeReqModal() { document.getElementById("req-overlay").classList.remove("show"); reqCell=null; }
+
+function makeMailto(to, cc, subject, body) {
+  return `mailto:${encodeURIComponent(to)}?cc=${encodeURIComponent(cc)}&subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+}
+
+function generateLinks() {
+  if (!reqCell) return;
+  const name  = document.getElementById("r-name").value.trim();
+  const email = document.getElementById("r-email").value.trim();
+  const rexec = document.getElementById("r-exec").value.trim();
+  if (!name) { document.getElementById("r-name").focus(); return; }
+
+  const exec   = EXECS[reqCell.ei];
+  const ds     = reqCell.ds;
+  const d      = new Date(ds + "T12:00:00");
+  const dayStr = `${DAYS[d.getDay()-1]}, ${MONTHS[d.getMonth()]} ${d.getDate()}`;
+
+  const subject = `Office availability request — Zukor ${exec.office} on ${dayStr}`;
+  const body =
+`Hi ${exec.assistant},
+
+${name}${rexec ? " (EA to " + rexec + ")" : ""} has requested use of ${exec.name}'s office (${exec.office}) on ${dayStr}. Could you please confirm if this is available?
+
+Thank you!
+Eden Livingood`;
+
+  const al = document.getElementById("action-links"); al.innerHTML = "";
+
+  const emailA = document.createElement("a");
+  emailA.href = makeMailto(exec.aEmail, EDEN.email, subject, body);
+  emailA.className = "action-link";
+  emailA.target = "_blank";
+  emailA.rel = "noopener noreferrer";
+  emailA.textContent = `Email ${exec.assistant} — request approval`;
+  al.appendChild(emailA);
+
+  if (isTeamMember()) {
+    const startDate  = ds.replace(/-/g, "");
+    const calTitle   = encodeURIComponent(`Office hold — Zukor ${exec.office} (${exec.name})`);
+    const calDetails = encodeURIComponent(`Office ${exec.office} in the Zukor Building, Paramount Lot, reserved for ${name}${rexec ? " (" + rexec + ")" : ""}. Arranged by Eden Livingood.`);
+    const calUrl     = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${calTitle}&dates=${startDate}/${startDate}&details=${calDetails}&src=${encodeURIComponent(EDEN.email)}${email ? "&add=" + encodeURIComponent(email) : ""}`;
+    const calA = document.createElement("a");
+    calA.href = calUrl; calA.className = "action-link cal-link";
+    calA.target = "_blank"; calA.rel = "noopener noreferrer";
+    calA.textContent = `Google Calendar — all-day hold for ${rexec || name}`;
+    al.appendChild(calA);
+  }
+
+  reservations[ckey(reqCell.ei, ds)] = { exec: rexec || name, requestor: name };
+  data[ckey(reqCell.ei, ds)] = "available";
+
+  document.getElementById("rform").style.display = "none";
+  document.getElementById("action-panel").classList.add("show");
+  document.getElementById("done-footer").style.display = "block";
+  render();
+}
+
+function render() {
+  const dates = weekDates();
+  const mon = dates[0], fri = dates[4];
+  document.getElementById("wlabel").textContent =
+    `${MONTHS[mon.getMonth()]} ${mon.getDate()} – ${mon.getMonth()!==fri.getMonth()?MONTHS[fri.getMonth()]+" ":""}${fri.getDate()}`;
+
+  const grid = document.getElementById("grid"); grid.innerHTML = "";
+  const corner = document.createElement("div");
+  corner.className = "ch"; corner.style.textAlign = "left";
+  corner.innerHTML = '<span style="font-size:11px">Office</span>';
+  grid.appendChild(corner);
+
+  dates.forEach(d => {
+    const h = document.createElement("div");
+    h.className = "ch" + (isToday(d) ? " today" : "");
+    h.innerHTML = `<span class="dn">${d.getDate()}</span>${DAYS[d.getDay()-1]}`;
+    grid.appendChild(h);
+  });
+
+  EXECS.forEach((exec, ei) => {
+    const isLast = ei === EXECS.length - 1;
+    const rh = document.createElement("div");
+    rh.className = "rh" + (isLast ? " last-row" : "");
+    if (isLast) rh.style.borderBottom = "none";
+    rh.innerHTML = `<div class="en">${exec.name}</div><div class="er">${exec.role}</div><div class="eo">Office ${exec.office}</div>`;
+    grid.appendChild(rh);
+
+    dates.forEach(d => {
+      const ds = dkey(d), k = ckey(ei, ds), st = data[k], res = reservations[k];
+      const cell = document.createElement("div");
+      const canEdit = isTeamMember();
+      cell.className = "cell" + (canEdit ? " clickable" : "") + (isLast ? " last-row" : "");
+      if (isLast) cell.style.borderBottom = "none";
+
+      if (res) {
+        cell.innerHTML = `<div class="res-block"><div class="res-exec">${res.exec}</div><div class="res-asst">(${res.requestor})</div></div>`;
+        if (canEdit) {
+          const startDate  = ds.replace(/-/g,"");
+          const calTitle   = encodeURIComponent(`Office hold — Zukor ${exec.office} (${exec.name})`);
+          const calDetails = encodeURIComponent(`Office ${exec.office} in the Zukor Building, Paramount Lot, reserved for ${res.exec} (${res.requestor}). Arranged by Eden Livingood.`);
+          const calUrl     = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${calTitle}&dates=${startDate}/${startDate}&details=${calDetails}&src=${encodeURIComponent(EDEN.email)}`;
+          const calBtn = document.createElement("a");
+          calBtn.href = calUrl; calBtn.className = "cal-btn";
+          calBtn.target = "_blank"; calBtn.rel = "noopener noreferrer";
+          calBtn.textContent = "Send calendar hold";
+          calBtn.onclick = (e) => e.stopPropagation();
+          cell.appendChild(calBtn);
+          cell.addEventListener("click", () => openStatusModal(ei, ds, st||null));
+        }
+      } else if (st) {
+        const s = STATUS[st];
+        cell.innerHTML = `<div class="badge ${s.bc}">${s.label}</div>`;
+        if (st === "available") {
+          const rb = document.createElement("button");
+          rb.className = "req-btn"; rb.textContent = "Request";
+          rb.onclick = (e) => { e.stopPropagation(); openReqModal(ei, ds); };
+          cell.appendChild(rb);
+        }
+        if (canEdit) cell.addEventListener("click", () => openStatusModal(ei, ds, st||null));
+      } else {
+        cell.innerHTML = `<div class="badge b-empty">—</div>`;
+        if (canEdit) cell.addEventListener("click", () => openStatusModal(ei, ds, null));
+      }
+      grid.appendChild(cell);
+    });
+  });
+
+  renderSummary(dates);
+  document.getElementById("loading").style.display = "none";
+  document.getElementById("grid").style.display = "grid";
+}
+
+function renderSummary(dates) {
+  let avail = 0, total = EXECS.length * 5, res = 0;
+  const todayStr = dkey(new Date()); let todayAvail = 0;
+  dates.forEach(d => {
+    const ds = dkey(d);
+    EXECS.forEach((_,ei) => {
+      const k = ckey(ei,ds), s = data[k], r = reservations[k];
+      if (r) res++;
+      else if (!s || s==="available") avail++;
+      if (ds===todayStr && !r && (!s || s==="available")) todayAvail++;
+    });
+  });
+  document.getElementById("summary").innerHTML = `
+    <div class="sc"><div class="sl">Available today</div><div class="sv">${todayAvail}</div><div class="ss">of ${EXECS.length} offices</div></div>
+    <div class="sc"><div class="sl">Available this week</div><div class="sv">${avail}</div><div class="ss">of ${total} office-days</div></div>
+    <div class="sc"><div class="sl">Reserved this week</div><div class="sv">${res}</div><div class="ss">pending confirmation</div></div>
+  `;
+}
+
+setInterval(loadData, 60000);
+</script>
+</body>
+</html>
